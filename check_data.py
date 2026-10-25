@@ -2,10 +2,6 @@
 
 Печатает, где нашлись картинки и лейблы, распределение по 4 классам, и сохраняет
 data_check.png: по 4 примера, где есть только class id 0 и только class id 1, с боксами.
-Нужно убедиться, что 0 — дым, 1 — огонь (иначе поменять data.smoke_id / data.fire_id).
-
-    python check_data.py
-    python check_data.py paths.data_root=/kaggle/input/d-fire
 """
 import os
 import random

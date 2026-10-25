@@ -1,0 +1,5 @@
+,pred_none,pred_smoke,pred_fire,pred_fire_smoke
+true_none,1947,43,2,13
+true_smoke,43,1110,0,33
+true_fire,3,4,172,41
+true_fire_smoke,2,40,31,822

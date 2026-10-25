@@ -3,10 +3,6 @@
 Запуск:
     python main.py                                   # параметры из config.py
     python main.py general.debug=true                # быстрый прогон на маленькой выборке
-    python main.py general.exp_name=r18_lr1e-4 training.lr=1e-4
-
-Всё складывается в <out_dir>/<exp_name>/ (список файлов — в README.md),
-одна строка на эксперимент — в <out_dir>/results.csv, архив — в <out_dir>/<exp_name>.zip.
 """
 import json
 import os
@@ -46,7 +42,7 @@ def main():
     logger.info(f'System: {json.dumps(system_info())}')
     logger.info(f'Config:\n{OmegaConf.to_yaml(config)}')
 
-    # ---------- данные ----------
+    # данные
     start = time.time()
     train_df, val_df, test_df = build_dataframes(config)
     splits = {'train': train_df, 'val': val_df, 'test': test_df}
@@ -66,7 +62,7 @@ def main():
 
     train_loader, val_loader, test_loader = get_loaders(config, train_df, val_df, test_df)
 
-    # ---------- модель и loss ----------
+    # модель и лосс
     model = get_model(config.model.name, len(CLASSES), config.model.pretrained).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     logger.info(f'Model: {config.model.name} (pretrained={config.model.pretrained}), '
@@ -76,15 +72,15 @@ def main():
     if config.training.class_weights:
         counts = np.bincount(train_df['label'], minlength=len(CLASSES)).clip(min=1)
         weight = torch.tensor(counts.sum() / (len(CLASSES) * counts), dtype=torch.float32, device=device)
-        logger.info(f'Class weights: {dict(zip(CLASSES, weight.cpu().numpy().round(3).tolist()))}')
+        logger.info(f'Class weights: {{c: round(float(w), 3) for c, w in zip(CLASSES, weight.cpu())}}')
     criterion = nn.CrossEntropyLoss(weight=weight)
 
-    # ---------- обучение ----------
+    # обучение
     start = time.time()
     _, best_epoch = fit(config, model, train_loader, val_loader, criterion, device, out_dir, logger)
     train_time = int(time.time() - start)
 
-    # ---------- оценка лучшей модели ----------
+    # оценка лучшей модели 
     checkpoint = torch.load(os.path.join(out_dir, 'best.pt'), map_location=device)
     model.load_state_dict(checkpoint['model'])
     use_amp = config.training.mixed_precision and device.type == 'cuda'

@@ -1,0 +1,31 @@
+general:
+  exp_name: resnet18_224
+  seed: 42
+  debug: true
+  debug_samples: 128
+paths:
+  data_root: /kaggle/input
+  out_dir: /kaggle/working/outputs
+data:
+  smoke_id: 0
+  fire_id: 1
+  val_size: 0.15
+  img_size: 224
+model:
+  name: resnet18
+  pretrained: true
+training:
+  epochs: 15
+  batch_size: 64
+  lr: 0.0003
+  weight_decay: 0.0001
+  mixed_precision: true
+  class_weights: true
+  early_stopping: 5
+  monitor: f1_macro
+  num_workers: 4
+  progress_bar: false
+logging:
+  log_interval: 50
+  n_error_examples: 24
+  zip_outputs: true

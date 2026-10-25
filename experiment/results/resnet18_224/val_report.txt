@@ -1,0 +1,26 @@
+VAL (2584 images)
+
+accuracy             0.9385
+precision_macro      0.9109
+recall_macro         0.8922
+f1_macro             0.9007
+roc_auc_macro        0.9810
+precision_weighted   0.9380
+recall_weighted      0.9385
+f1_weighted          0.9380
+roc_auc_weighted     0.9897
+
+Per-class metrics:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9736  0.9745  0.9741   0.9968         0.9958     1175
+smoke          0.9234  0.9274  0.9254   0.9864         0.9653      702
+fire           0.8400  0.7394  0.7865   0.9524         0.8106      142
+fire_smoke     0.9066  0.9274  0.9169   0.9884         0.9581      565
+
+Confusion matrix:
+                 pred_none  pred_smoke  pred_fire  pred_fire_smoke
+true_none             1145          27          2                1
+true_smoke              27         651          1               23
+true_fire                3           4        105               30
+true_fire_smoke          1          23         17              524

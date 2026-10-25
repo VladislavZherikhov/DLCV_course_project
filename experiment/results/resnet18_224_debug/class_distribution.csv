@@ -1,0 +1,6 @@
+,train,val,test
+none,58,58,60
+smoke,35,35,35
+fire,7,7,6
+fire_smoke,28,28,27
+TOTAL,128,128,128

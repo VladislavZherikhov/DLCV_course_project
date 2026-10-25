@@ -1,10 +1,4 @@
 """Локальная проверка обученной модели (CPU тоже подходит).
-
-1) Полная оценка на сплите D-Fire (те же метрики и картинки, что и на Kaggle):
-    python predict.py --ckpt outputs/resnet18_224/best.pt --data_root C:/data/D-Fire --split test
-
-2) Предсказание на своих фото (одна картинка или папка):
-    python predict.py --ckpt outputs/resnet18_224/best.pt --images my_photos/
 """
 import argparse
 import os

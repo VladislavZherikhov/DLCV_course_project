@@ -1,4 +1,4 @@
-"""Разметка D-Fire -> 4 класса, Dataset и DataLoader'ы."""
+"""Разметка D-Fire -> 4 класса, датасет и даталоудеры."""
 import glob
 import os
 

@@ -1,0 +1,120 @@
+08:43:08 | Experiment: resnet18_224_debug
+08:43:08 | Output dir: /kaggle/working/outputs/resnet18_224_debug
+08:43:08 | System: {"python": "3.13.15", "torch": "2.11.0+cu128", "cuda_available": true, "cpu_count": 4, "gpu": "Tesla T4", "gpu_count": 2, "gpu_memory_gb": 14.6, "cuda": "12.8"}
+08:43:08 | Config:
+general:
+  exp_name: resnet18_224
+  seed: 42
+  debug: true
+  debug_samples: 128
+paths:
+  data_root: /kaggle/input
+  out_dir: /kaggle/working/outputs
+data:
+  smoke_id: 0
+  fire_id: 1
+  val_size: 0.15
+  img_size: 224
+model:
+  name: resnet18
+  pretrained: true
+training:
+  epochs: 15
+  batch_size: 64
+  lr: 0.0003
+  weight_decay: 0.0001
+  mixed_precision: true
+  class_weights: true
+  early_stopping: 5
+  monitor: f1_macro
+  num_workers: 4
+  progress_bar: false
+logging:
+  log_interval: 50
+  n_error_examples: 24
+  zip_outputs: true
+
+08:43:22 | Data root: /kaggle/input (parsed in 13.7s)
+08:43:22 | Class distribution:
+            train  val  test train % val % test %
+none           58   58    60    45.3  45.3   46.9
+smoke          35   35    35    27.3  27.3   27.3
+fire            7    7     6     5.5   5.5    4.7
+fire_smoke     28   28    27    21.9  21.9   21.1
+TOTAL         128  128   128                     
+08:43:23 | Model: resnet18 (pretrained=True), 11.18M parameters
+08:43:23 | Class weights: {'none': 0.5519999861717224, 'smoke': 0.9139999747276306, 'fire': 4.571000099182129, 'fire_smoke': 1.1430000066757202}
+08:43:23 | Training: 1 epochs x 2 steps, batch 64, AMP True, optimizer AdamW, scheduler CosineAnnealingLR
+08:43:23 | 
+========== Epoch 1/1 | lr 3.00e-04 ==========
+08:43:37 |   [ep 1] step    2/2 | loss 1.3404 (avg 1.4953) | lr 3.00e-04 | 10 img/s | elapsed 0m 13s | gpu mem 0.9 GB
+08:43:47 | Epoch 1/1 done in 0m 23s (train 0m 13s, val 0m 10s) | elapsed 0m 23s | ETA 0m 00s | gpu mem 0.9 GB
+08:43:47 |   train | loss 1.4953 | accuracy 0.2891 | f1_macro 0.2187 | f1_weighted 0.2336  (with augmentations)
+08:43:47 |   val   | loss 1.1214 | accuracy 0.4766 | precision_macro 0.4673 | recall_macro 0.5127 | f1_macro 0.4678 | roc_auc_macro 0.7830 | precision_weighted 0.5271 | recall_weighted 0.4766 | f1_weighted 0.4782 | roc_auc_weighted 0.7476
+08:43:47 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.6471  0.3793  0.4783   0.6995         0.6476       58
+smoke          0.3889  0.6000  0.4719   0.7481         0.4814       35
+fire           0.3333  0.5714  0.4211   0.8678         0.4483        7
+fire_smoke     0.5000  0.5000  0.5000   0.8168         0.6284       28
+08:43:47 |   >>> new best val f1_macro: 0.4678 (was 0.0000) -> saved best.pt
+08:43:48 | 
+Training finished in 0m 24s. Best val f1_macro: 0.4678 (epoch 1)
+08:43:48 | 
+Loaded best.pt (epoch 1) for final evaluation
+08:43:52 | 
+==================== VAL | best epoch 1 | 128 images | 1.5s (87 img/s) ====================
+  accuracy             0.4766
+  precision_macro      0.4673
+  recall_macro         0.5127
+  f1_macro             0.4678
+  roc_auc_macro        0.7830
+  precision_weighted   0.5271
+  recall_weighted      0.4766
+  f1_weighted          0.4782
+  roc_auc_weighted     0.7476
+
+Per-class metrics:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.6471  0.3793  0.4783   0.6995         0.6476       58
+smoke          0.3889  0.6000  0.4719   0.7481         0.4814       35
+fire           0.3333  0.5714  0.4211   0.8678         0.4483        7
+fire_smoke     0.5000  0.5000  0.5000   0.8168         0.6284       28
+
+Confusion matrix:
+                 pred_none  pred_smoke  pred_fire  pred_fire_smoke
+true_none               22          27          2                7
+true_smoke               9          21          0                5
+true_fire                0           1          4                2
+true_fire_smoke          3           5          6               14
+08:44:05 | 
+==================== TEST | best epoch 1 | 128 images | 10.4s (12 img/s) ====================
+  accuracy             0.5234
+  precision_macro      0.5182
+  recall_macro         0.5613
+  f1_macro             0.4906
+  roc_auc_macro        0.8257
+  precision_weighted   0.6175
+  recall_weighted      0.5234
+  f1_weighted          0.5182
+  roc_auc_weighted     0.7906
+
+Per-class metrics:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.8065  0.4167  0.5495   0.7549         0.7355       60
+smoke          0.4328  0.8286  0.5686   0.8092         0.5427       35
+fire           0.3333  0.6667  0.4444   0.9221         0.5387        6
+fire_smoke     0.5000  0.3333  0.4000   0.8166         0.5953       27
+
+Confusion matrix:
+                 pred_none  pred_smoke  pred_fire  pred_fire_smoke
+true_none               25          29          0                6
+true_smoke               5          29          0                1
+true_fire                0           0          4                2
+true_fire_smoke          1           9          8                9
+08:44:05 | 
+Done in 0m 56s (training 0m 24s). TEST: accuracy 0.5234 | f1_macro 0.4906 | f1_weighted 0.5182 | roc_auc_macro 0.8257
+08:44:05 | Files: best.pt, class_distribution.csv, config.yaml, labels.csv, last.pt, log.csv, summary.json, test_confusion_matrix.csv, test_confusion_matrix.png, test_confusion_matrix_norm.png, test_errors.png, test_metrics.json, test_per_class.csv, test_predictions.csv, test_report.txt, test_roc_pr_curves.png, train.log, training_curves.png, val_confusion_matrix.csv, val_confusion_matrix.png, val_confusion_matrix_norm.png, val_errors.png, val_metrics.json, val_per_class.csv, val_predictions.csv, val_report.txt, val_roc_pr_curves.png
