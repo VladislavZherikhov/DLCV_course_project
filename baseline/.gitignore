@@ -1,0 +1,6 @@
+outputs/
+*.pt
+__pycache__/
+.ipynb_checkpoints/
+D-Fire/
+data/
