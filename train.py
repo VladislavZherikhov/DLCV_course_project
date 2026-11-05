@@ -1,4 +1,5 @@
 """Цикл обучения: одна эпоха train, предсказание, fit с сохранением best.pt."""
+import math
 import os
 import time
 
@@ -8,6 +9,7 @@ import torch
 from omegaconf import OmegaConf
 
 from config import CLASSES
+from model import is_attention_param
 from utils import (compute_metrics, format_metrics, format_time, gpu_memory_gb,
                    per_class_metrics, plot_history)
 
@@ -99,12 +101,24 @@ def fit(config, model, train_loader, val_loader, criterion, device, out_dir, log
     use_amp = tc.mixed_precision and device.type == 'cuda'
     epochs = 1 if config.general.debug else tc.epochs
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=tc.lr, weight_decay=tc.weight_decay)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=tc.lr / 100)
+    # новые attention-модули учатся с нуля -> им отдельный, больший lr
+    base_params = [p for n, p in model.named_parameters() if not is_attention_param(n)]
+    attention_params = [p for n, p in model.named_parameters() if is_attention_param(n)]
+    param_groups = [{'params': base_params, 'lr': tc.lr}]
+    if attention_params:
+        param_groups.append({'params': attention_params, 'lr': tc.lr * tc.attention_lr_mult})
+    optimizer = torch.optim.AdamW(param_groups, weight_decay=tc.weight_decay)
+
+    # косинус от lr до lr/100 за все эпохи, пропорционально для каждой группы параметров
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer, lambda e: 0.01 + 0.99 * 0.5 * (1 + math.cos(math.pi * e / epochs)))
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
 
     logger.info(f'Training: {epochs} epochs x {len(train_loader)} steps, batch {tc.batch_size}, '
-                f'AMP {use_amp}, optimizer AdamW, scheduler CosineAnnealingLR')
+                f'AMP {use_amp}, optimizer AdamW, scheduler cosine (lr -> lr/100)')
+    if attention_params:
+        logger.info(f'Attention params: {sum(p.numel() for p in attention_params):,} '
+                    f'with lr {tc.lr * tc.attention_lr_mult:.1e} (x{tc.attention_lr_mult})')
 
     history = []
     best_score, best_epoch, epochs_since_improvement = -1.0, 0, 0

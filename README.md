@@ -15,7 +15,7 @@ ROC AUC macro **0.976**.
 ├── config.py            # all hyperparameters and paths (auto-switch Kaggle / local)
 ├── main.py              # entry point: data → model → training → evaluation on val and test
 ├── data.py              # YOLO txt → 4 classes, train/val split, augmentations, Dataset / DataLoader
-├── model.py             # torchvision ResNet with a new 4-class head
+├── model.py             # torchvision ResNet with a new 4-class head, optional CBAM attention
 ├── train.py             # training epoch, inference, fit loop (checkpoints, early stopping, logs)
 ├── utils.py             # seed, logger, metrics, plots, reports
 ├── check_data.py        # dataset sanity check: class distribution + bounding box preview
@@ -77,19 +77,48 @@ BasicBlock: `Conv3×3 → BN → ReLU → Conv3×3 → BN → (+ shortcut) → R
 `Conv1×1/2 + BN` projection when the resolution and channel count change. Hidden activation: **ReLU**.
 The output is raw logits; softmax is applied inside the loss and at inference.
 
-### 2.4 Training
+### 2.4 CBAM attention (`model.attention=cbam`)
+
+[CBAM: Convolutional Block Attention Module](https://arxiv.org/abs/1807.06521) (Woo et al., ECCV 2018) refines a
+feature map `F` with two sequential attention masks:
+
+- **Channel attention** — *which* features matter: `M_c = σ(MLP(AvgPool(F)) + MLP(MaxPool(F)))`, one weight per channel
+  (shared 2-layer MLP with reduction ratio 16);
+- **Spatial attention** — *where* to look: `M_s = σ(Conv7×7([mean_c(F); max_c(F)]))`, one weight per spatial position;
+- `F' = F ⊗ M_c`, then `F'' = F' ⊗ M_s`.
+
+As in the paper, a CBAM module is inserted into **every residual block**, after the last BN and before the addition
+with the shortcut: `Conv → BN → ReLU → Conv → BN → CBAM → (+ shortcut) → ReLU`.
+For ResNet18 this gives 8 modules and +89.9K parameters (+0.8%).
+
+**Motivation for D-Fire.** The baseline averages the final 7×7 feature map with equal weights (global average pooling),
+so faint smoke in one or two cells is diluted by the rest of the image. This is related to the main baseline error,
+`fire` ↔ `fire_smoke`. Spatial attention lets the network up-weight such regions.
+
+**Fine-tuning a pretrained backbone.** There are no ImageNet weights for ResNet18 + CBAM, so the modules are trained
+from scratch inside a pretrained network. With the original formulation the masks start at `σ(·) ≈ 0.5`, which scales
+every block's features by ≈ 0.25 and disrupts the pretrained representations. Two changes avoid this:
+
+- **identity initialization** (`model.cbam.identity_init=true`): the last layer of each attention branch is zero-initialized
+  and the masks are computed as `2·σ(z)`, so at the start both masks equal exactly 1 and the network is identical
+  to the baseline; attention is then learned gradually (`identity_init=false` restores the paper's formulation);
+- **separate learning rate**: CBAM parameters use `lr × training.attention_lr_mult` (×10 by default).
+
+All other settings are identical to the baseline, so the comparison isolates the effect of CBAM.
+
+### 2.5 Training
 
 | setting | value |
 |---|---|
 | loss | cross-entropy with class weights `w_c = N / (K · n_c)` |
-| optimizer | AdamW, lr 3e-4, weight decay 1e-4 |
+| optimizer | AdamW, lr 3e-4, weight decay 1e-4 (CBAM parameters: lr × 10) |
 | LR schedule | cosine annealing to lr / 100 over all epochs |
 | epochs / batch size | 15 / 64 |
 | mixed precision | yes (`torch.autocast` + `GradScaler`) |
 | checkpoint selection | best val F1 macro (`best.pt`), plus `last.pt` |
 | early stopping | 5 epochs without val F1 macro improvement |
 
-### 2.5 Evaluation and outputs
+### 2.6 Evaluation and outputs
 
 After training, `best.pt` is evaluated on val and test. Metrics: accuracy, precision, recall, F1 and
 ROC AUC (one-vs-rest), each in **macro** and **weighted** averaging, plus per-class precision / recall / F1 /
@@ -114,13 +143,14 @@ Each run writes to `outputs/<exp_name>/` (and `outputs/<exp_name>.zip`):
 
 `outputs/results.csv` gets one row per run for comparing experiments.
 
-### 2.6 How to run
+### 2.7 How to run
 
 ```bash
 pip install -r requirements.txt
 python check_data.py                                     # verify dataset and label mapping
 python main.py general.debug=true                        # quick sanity run: 128 images per split, 1 epoch
-python main.py                                           # full run with config.py defaults
+python main.py                                           # baseline run with config.py defaults
+python main.py general.exp_name=resnet18_cbam_224 model.attention=cbam   # ResNet18 + CBAM
 python main.py general.exp_name=r18_320 data.img_size=320 training.epochs=20   # override any parameter
 ```
 
@@ -129,11 +159,11 @@ Any parameter from `config.py` can be overridden as `section.key=value`; an unkn
 **Kaggle** (dataset added via *Add Input*, *Accelerator: GPU*, *Internet: On*):
 
 ```python
-!git clone -q -b baseline https://github.com/VladislavZherikhov/DLCV_course_project.git /kaggle/working/repo
+!git clone -q -b cbam https://github.com/VladislavZherikhov/DLCV_course_project.git /kaggle/working/repo
 %cd /kaggle/working/repo
 !pip install -q omegaconf
 !python check_data.py
-!python -u main.py general.exp_name=resnet18_224
+!python -u main.py general.exp_name=resnet18_cbam_224 model.attention=cbam
 ```
 
 The exact notebook used for the experiment is [`experiment/baseline.ipynb`](experiment/baseline.ipynb).

@@ -16,7 +16,7 @@ from utils import format_metrics, save_evaluation
 def load_model(ckpt_path, device):
     checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     cfg, classes = checkpoint['config'], checkpoint['classes']
-    model = get_model(cfg['model']['name'], len(classes), pretrained=False)
+    model = get_model(cfg['model'], len(classes), pretrained=False)
     model.load_state_dict(checkpoint['model'])
     return model.to(device).eval(), cfg, classes
 
@@ -46,7 +46,8 @@ def main():
     transform = get_transforms(cfg['data']['img_size'], is_train=False)
     out_dir = args.out_dir or os.path.join(os.path.dirname(args.ckpt), 'local_eval')
     os.makedirs(out_dir, exist_ok=True)
-    print(f'Model: {cfg["model"]["name"]} | classes: {classes} | device: {device}')
+    print(f'Model: {cfg["model"]["name"]} (attention={cfg["model"].get("attention", "none")}) | '
+          f'classes: {classes} | device: {device}')
 
     if args.data_root:
         df = make_split_df(*find_split_dirs(args.data_root, args.split),

@@ -39,12 +39,20 @@ config = {
     'model': {
         'name': 'resnet18',
         'pretrained': True,  # веса ImageNet
+        # 'none' — baseline, 'cbam' — CBAM в каждом residual-блоке (Woo et al., ECCV 2018)
+        'attention': 'none',
+        'cbam': {
+            'reduction': 16,        # сжатие каналов в MLP channel attention
+            'kernel_size': 7,       # размер свёртки spatial attention
+            'identity_init': True,  # на старте CBAM = тождественное отображение (не ломает pretrained веса)
+        },
     },
     'training': {
         'epochs': 15,
         'batch_size': 64,
         'lr': 3e-4,
         'weight_decay': 1e-4,
+        'attention_lr_mult': 10,  # lr новых attention-модулей = lr * attention_lr_mult
         'mixed_precision': True,  
         'class_weights': True,    # веса классов в CrossEntropy против дисбаланса
         'early_stopping': 5,      

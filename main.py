@@ -63,16 +63,17 @@ def main():
     train_loader, val_loader, test_loader = get_loaders(config, train_df, val_df, test_df)
 
     # модель и лосс
-    model = get_model(config.model.name, len(CLASSES), config.model.pretrained).to(device)
+    model = get_model(config.model, len(CLASSES)).to(device)
     n_params = sum(p.numel() for p in model.parameters())
-    logger.info(f'Model: {config.model.name} (pretrained={config.model.pretrained}), '
-                f'{n_params / 1e6:.2f}M parameters')
+    logger.info(f'Model: {config.model.name} (pretrained={config.model.pretrained}, '
+                f'attention={config.model.attention}), {n_params / 1e6:.2f}M parameters')
 
     weight = None
     if config.training.class_weights:
         counts = np.bincount(train_df['label'], minlength=len(CLASSES)).clip(min=1)
         weight = torch.tensor(counts.sum() / (len(CLASSES) * counts), dtype=torch.float32, device=device)
-        logger.info(f'Class weights: {{c: round(float(w), 3) for c, w in zip(CLASSES, weight.cpu())}}')
+        weights_log = {c: round(float(w), 3) for c, w in zip(CLASSES, weight.cpu())}
+        logger.info(f'Class weights: {weights_log}')
     criterion = nn.CrossEntropyLoss(weight=weight)
 
     # обучение
@@ -105,6 +106,7 @@ def main():
     summary = {
         'exp_name': exp_name,
         'model': config.model.name,
+        'attention': config.model.attention,
         'img_size': config.data.img_size,
         'epochs': config.training.epochs,
         'best_epoch': best_epoch,
