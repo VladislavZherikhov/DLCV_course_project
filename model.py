@@ -1,5 +1,6 @@
-"""Модель: ResNet из torchvision с новой головой на num_classes и опциональным CBAM.
+"""Модели: ConvNeXt или ResNet из torchvision с новой головой на num_classes, опционально CBAM (для ResNet).
 
+ConvNeXt: Liu et al., "A ConvNet for the 2020s", CVPR 2022.
 CBAM: Woo et al., "CBAM: Convolutional Block Attention Module", ECCV 2018.
 """
 from collections import OrderedDict
@@ -80,21 +81,32 @@ def is_attention_param(name):
 
 
 def get_model(model_cfg, num_classes, pretrained=None):
-    """ResNet из torchvision (resnet18/34/50/...) с заменённым fc и опциональным CBAM.
+    """Backbone из torchvision с заменённой головой на num_classes.
 
+    Поддерживаются convnext_tiny/small/base/large и resnet18/34/50/...; CBAM — только для ResNet.
     model_cfg — секция model из конфига (DictConfig или dict из чекпоинта).
     pretrained=None — взять значение из model_cfg.
     """
     name = model_cfg['name']
-    if not name.startswith('resnet'):
-        raise ValueError(f'Unknown model: {name}')
     if pretrained is None:
         pretrained = model_cfg.get('pretrained', True)
+    weights = 'DEFAULT' if pretrained else None
+    attention = model_cfg.get('attention', 'none')  # в старых чекпоинтах ключа нет -> baseline
 
-    model = getattr(models, name)(weights='DEFAULT' if pretrained else None)
+    if name.startswith('convnext'):
+        if attention != 'none':
+            raise ValueError('CBAM is implemented only for ResNet backbones')
+        # ConvNeXt: features -> avgpool -> classifier [LayerNorm2d, Flatten, Linear(C -> 1000)]
+        model = getattr(models, name)(weights=weights)
+        model.classifier[2] = nn.Linear(model.classifier[2].in_features, num_classes)
+        return model
+
+    if not name.startswith('resnet'):
+        raise ValueError(f'Unknown model: {name}')
+
+    model = getattr(models, name)(weights=weights)
     model.fc = nn.Linear(model.fc.in_features, num_classes)
 
-    attention = model_cfg.get('attention', 'none')  # в старых чекпоинтах ключа нет -> baseline
     if attention == 'cbam':
         cbam = model_cfg.get('cbam', {})
         add_cbam(model, cbam.get('reduction', 16), cbam.get('kernel_size', 7), cbam.get('identity_init', True))

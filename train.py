@@ -101,13 +101,21 @@ def fit(config, model, train_loader, val_loader, criterion, device, out_dir, log
     use_amp = tc.mixed_precision and device.type == 'cuda'
     epochs = 1 if config.general.debug else tc.epochs
 
-    # новые attention-модули учатся с нуля -> им отдельный, больший lr
-    base_params = [p for n, p in model.named_parameters() if not is_attention_param(n)]
-    attention_params = [p for n, p in model.named_parameters() if is_attention_param(n)]
-    param_groups = [{'params': base_params, 'lr': tc.lr}]
-    if attention_params:
-        param_groups.append({'params': attention_params, 'lr': tc.lr * tc.attention_lr_mult})
-    optimizer = torch.optim.AdamW(param_groups, weight_decay=tc.weight_decay)
+    # группы параметров: новые attention-модули учатся с нуля -> больший lr;
+    # bias, веса нормализаций (1D-тензоры) и layer_scale ConvNeXt (в torchvision форма C×1×1)
+    # -> без weight decay (если no_weight_decay_1d)
+    groups = {}
+    for name, param in model.named_parameters():
+        is_attention = is_attention_param(name)
+        no_decay = tc.no_weight_decay_1d and (param.ndim <= 1 or 'layer_scale' in name)
+        groups.setdefault((is_attention, no_decay), []).append(param)
+    param_groups = [{
+        'params': params,
+        'lr': tc.lr * (tc.attention_lr_mult if is_attention else 1),
+        'weight_decay': 0.0 if no_decay else tc.weight_decay,
+    } for (is_attention, no_decay), params in sorted(groups.items())]
+    attention_params = [p for (is_attention, _), ps in groups.items() if is_attention for p in ps]
+    optimizer = torch.optim.AdamW(param_groups)
 
     # косинус от lr до lr/100 за все эпохи, пропорционально для каждой группы параметров
     scheduler = torch.optim.lr_scheduler.LambdaLR(
@@ -115,7 +123,8 @@ def fit(config, model, train_loader, val_loader, criterion, device, out_dir, log
     scaler = torch.amp.GradScaler(device.type, enabled=use_amp)
 
     logger.info(f'Training: {epochs} epochs x {len(train_loader)} steps, batch {tc.batch_size}, '
-                f'AMP {use_amp}, optimizer AdamW, scheduler cosine (lr -> lr/100)')
+                f'AMP {use_amp}, optimizer AdamW (lr {tc.lr:.1e}, weight decay {tc.weight_decay}, '
+                f'no decay on bias/norm: {tc.no_weight_decay_1d}), scheduler cosine (lr -> lr/100)')
     if attention_params:
         logger.info(f'Attention params: {sum(p.numel() for p in attention_params):,} '
                     f'with lr {tc.lr * tc.attention_lr_mult:.1e} (x{tc.attention_lr_mult})')

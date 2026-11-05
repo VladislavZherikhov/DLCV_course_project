@@ -1,10 +1,13 @@
-# D-Fire: Fire and Smoke Image Classification — ResNet18 Baseline
+# D-Fire: Fire and Smoke Image Classification
 
 Image-level classification of the [D-Fire dataset](https://www.kaggle.com/datasets/shubhamkarande13/d-fire)
-into 4 classes with an ImageNet-pretrained ResNet18.
+into 4 classes (`none`, `smoke`, `fire`, `fire_smoke`) with ImageNet-pretrained CNNs.
 
-**Baseline result (test set, 4306 images):** accuracy **0.941**, F1 macro **0.907**, F1 weighted **0.941**,
-ROC AUC macro **0.976**.
+| experiment | model | input | test accuracy | test F1 macro | test F1 `fire` | test ROC AUC macro |
+|---|---|---|---|---|---|---|
+| [1. Baseline](#3-experiment-1-resnet18-baseline) | ResNet18 | 224 | **0.9408** | **0.9065** | **0.8094** | 0.9757 |
+| [2. CBAM](#4-experiment-2-resnet18--cbam) | ResNet18 + CBAM | 224 | 0.9322 | 0.8898 | 0.7636 | **0.9792** |
+| [3. ConvNeXt](#5-experiment-3-convnext-tiny) | ConvNeXt-Tiny | 384 | *pending* | | | |
 
 ---
 
@@ -15,17 +18,19 @@ ROC AUC macro **0.976**.
 ├── config.py            # all hyperparameters and paths (auto-switch Kaggle / local)
 ├── main.py              # entry point: data → model → training → evaluation on val and test
 ├── data.py              # YOLO txt → 4 classes, train/val split, augmentations, Dataset / DataLoader
-├── model.py             # torchvision ResNet with a new 4-class head, optional CBAM attention
+├── model.py             # ConvNeXt / ResNet backbones with a new 4-class head, optional CBAM for ResNet
 ├── train.py             # training epoch, inference, fit loop (checkpoints, early stopping, logs)
 ├── utils.py             # seed, logger, metrics, plots, reports
 ├── check_data.py        # dataset sanity check: class distribution + bounding box preview
 ├── predict.py           # evaluate a saved checkpoint / predict on custom images
 ├── requirements.txt
 └── experiment/
-    ├── baseline.ipynb               # Kaggle notebook used for the run (with outputs)
+    ├── baseline.ipynb                       # Kaggle notebook of experiment 1 (with outputs)
+    ├── cbam_pipeline.ipynb                  # Kaggle notebook of experiment 2 (with outputs)
     └── results/
-        ├── resnet18_224/            # main experiment: logs, metrics, plots, predictions
-        └── resnet18_224_debug/      # pipeline sanity check (128 images per split, 1 epoch)
+        ├── baseline_resnet18_224/           # experiment 1: logs, metrics, plots, predictions
+        ├── cbam_pipeline_resnet18_224/      # experiment 2
+        └── resnet18_224_debug/              # pipeline sanity check (128 images per split, 1 epoch)
 ```
 
 ## 2. Pipeline
@@ -52,17 +57,50 @@ to verify the `0 = smoke`, `1 = fire` mapping.
 
 - **Split:** the official D-Fire `train` set is split into train / val (85% / 15%, stratified by class, seed 42);
   the official `test` set is used only for final evaluation.
-- **Train augmentations:** `RandomResizedCrop(224, scale=(0.7, 1.0))`, horizontal flip,
+- **Train augmentations:** `RandomResizedCrop(S, scale=(0.7, 1.0))`, horizontal flip,
   `ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1)`; hue is not changed because color is a key cue for fire.
-- **Eval preprocessing:** resize to 224×224.
+- **Eval preprocessing:** resize to S×S.
 - **Normalization:** ImageNet mean / std.
+- Input size S (`data.img_size`): 224 for the ResNet18 experiments, 384 for ConvNeXt-Tiny.
+- Augmentation is applied on the fly: the training set size does not change (14 637 images).
 
-### 2.3 Model
+### 2.3 Models
 
-`torchvision.models.resnet18` with ImageNet weights (`IMAGENET1K_V1`). The final `fc` layer (512 → 1000) is
-replaced by a new `Linear(512 → 4)`; all layers are fine-tuned.
+All backbones come from `torchvision` with ImageNet-1K weights; the classification head is replaced by a new
+4-class linear layer and the whole network is fine-tuned. The output is raw logits; softmax is applied inside the
+loss and at inference.
 
-| stage | output (C×H×W) | parameters |
+#### 2.3.1 ConvNeXt-Tiny (`model.name=convnext_tiny`, default)
+
+[A ConvNet for the 2020s](https://arxiv.org/abs/2201.03545) (Liu et al., CVPR 2022) modernizes the ResNet design with
+ideas from vision transformers: a patchify stem, large 7×7 depthwise kernels, an inverted bottleneck, LayerNorm
+instead of BatchNorm, GELU instead of ReLU, fewer normalization / activation layers, and separate downsampling layers.
+Weights `IMAGENET1K_V1` (82.5% ImageNet top-1, vs 69.8% for ResNet18).
+
+| stage | output at 384×384 (C×H×W) | blocks | parameters |
+|---|---|---|---|
+| stem: Conv 4×4/4 + LayerNorm | 96×96×96 | — | 4.9K |
+| stage 1 | 96×96×96 | 3 | 238K |
+| downsample: LayerNorm + Conv 2×2/2 | 192×48×48 | — | 74K |
+| stage 2 | 192×48×48 | 3 | 918K |
+| downsample | 384×24×24 | — | 296K |
+| stage 3 | 384×24×24 | 9 | 10.8M |
+| downsample | 768×12×12 | — | 1.2M |
+| stage 4 | 768×12×12 | 3 | 14.3M |
+| global average pooling → LayerNorm → Linear(768 → 4) | 4 logits | — | 4.6K |
+| **total** | | **18** | **27.8M** |
+
+ConvNeXt block: `DWConv 7×7 → LayerNorm → Linear(C → 4C) → GELU → Linear(4C → C) → layer scale → stochastic depth → (+ x)`.
+Stochastic depth (drop path) grows linearly up to 0.1 in the last block.
+
+At 384×384 the final feature map is 12×12 instead of 7×7 for ResNet18 at 224, which preserves small and distant
+fire / smoke. Cost: 13.1 GMACs per image vs 1.8 for ResNet18 at 224.
+
+#### 2.3.2 ResNet18 (`model.name=resnet18`)
+
+Weights `IMAGENET1K_V1`; the final `fc` layer (512 → 1000) is replaced by `Linear(512 → 4)`.
+
+| stage | output at 224×224 (C×H×W) | parameters |
 |---|---|---|
 | conv1 7×7/2 + BN + ReLU, maxpool 3×3/2 | 64×56×56 | 9.5K |
 | layer1: 2 × BasicBlock | 64×56×56 | 148K |
@@ -74,26 +112,21 @@ replaced by a new `Linear(512 → 4)`; all layers are fine-tuned.
 | **total** | | **11.18M** |
 
 BasicBlock: `Conv3×3 → BN → ReLU → Conv3×3 → BN → (+ shortcut) → ReLU`. The shortcut is the identity, or a
-`Conv1×1/2 + BN` projection when the resolution and channel count change. Hidden activation: **ReLU**.
-The output is raw logits; softmax is applied inside the loss and at inference.
+`Conv1×1/2 + BN` projection when the resolution and channel count change. Hidden activation: ReLU.
 
-### 2.4 CBAM attention (`model.attention=cbam`)
+#### 2.3.3 CBAM attention for ResNet (`model.attention=cbam`)
 
 [CBAM: Convolutional Block Attention Module](https://arxiv.org/abs/1807.06521) (Woo et al., ECCV 2018) refines a
 feature map `F` with two sequential attention masks:
 
-- **Channel attention** — *which* features matter: `M_c = σ(MLP(AvgPool(F)) + MLP(MaxPool(F)))`, one weight per channel
+- **Channel attention**, *which* features matter: `M_c = σ(MLP(AvgPool(F)) + MLP(MaxPool(F)))`, one weight per channel
   (shared 2-layer MLP with reduction ratio 16);
-- **Spatial attention** — *where* to look: `M_s = σ(Conv7×7([mean_c(F); max_c(F)]))`, one weight per spatial position;
+- **Spatial attention**, *where* to look: `M_s = σ(Conv7×7([mean_c(F); max_c(F)]))`, one weight per spatial position;
 - `F' = F ⊗ M_c`, then `F'' = F' ⊗ M_s`.
 
 As in the paper, a CBAM module is inserted into **every residual block**, after the last BN and before the addition
 with the shortcut: `Conv → BN → ReLU → Conv → BN → CBAM → (+ shortcut) → ReLU`.
 For ResNet18 this gives 8 modules and +89.9K parameters (+0.8%).
-
-**Motivation for D-Fire.** The baseline averages the final 7×7 feature map with equal weights (global average pooling),
-so faint smoke in one or two cells is diluted by the rest of the image. This is related to the main baseline error,
-`fire` ↔ `fire_smoke`. Spatial attention lets the network up-weight such regions.
 
 **Fine-tuning a pretrained backbone.** There are no ImageNet weights for ResNet18 + CBAM, so the modules are trained
 from scratch inside a pretrained network. With the original formulation the masks start at `σ(·) ≈ 0.5`, which scales
@@ -101,24 +134,26 @@ every block's features by ≈ 0.25 and disrupts the pretrained representations. 
 
 - **identity initialization** (`model.cbam.identity_init=true`): the last layer of each attention branch is zero-initialized
   and the masks are computed as `2·σ(z)`, so at the start both masks equal exactly 1 and the network is identical
-  to the baseline; attention is then learned gradually (`identity_init=false` restores the paper's formulation);
+  to the baseline (`identity_init=false` restores the paper's formulation);
 - **separate learning rate**: CBAM parameters use `lr × training.attention_lr_mult` (×10 by default).
 
-All other settings are identical to the baseline, so the comparison isolates the effect of CBAM.
+### 2.4 Training
 
-### 2.5 Training
+| setting | ResNet18 (± CBAM) | ConvNeXt-Tiny (default) |
+|---|---|---|
+| loss | cross-entropy with class weights `w_c = N / (K · n_c)` | same |
+| optimizer | AdamW, lr 3e-4, weight decay 1e-4 on all parameters (CBAM: lr × 10) | AdamW, lr 1e-4, weight decay 0.05; no weight decay on biases, norm weights and layer scale |
+| LR schedule | cosine annealing to lr / 100 over all epochs | same |
+| epochs / batch size | 15 / 64 | 15 / 32 |
+| input size | 224 | 384 |
+| mixed precision | yes (`torch.autocast` + `GradScaler`) | same |
+| checkpoint selection | best val F1 macro (`best.pt`), plus `last.pt` | same |
+| early stopping | 5 epochs without val F1 macro improvement | same |
 
-| setting | value |
-|---|---|
-| loss | cross-entropy with class weights `w_c = N / (K · n_c)` |
-| optimizer | AdamW, lr 3e-4, weight decay 1e-4 (CBAM parameters: lr × 10) |
-| LR schedule | cosine annealing to lr / 100 over all epochs |
-| epochs / batch size | 15 / 64 |
-| mixed precision | yes (`torch.autocast` + `GradScaler`) |
-| checkpoint selection | best val F1 macro (`best.pt`), plus `last.pt` |
-| early stopping | 5 epochs without val F1 macro improvement |
+The ConvNeXt settings follow common fine-tuning practice for ConvNeXt / vision transformers
+(lower lr, weight decay 0.05 that excludes 1-D parameters).
 
-### 2.6 Evaluation and outputs
+### 2.5 Evaluation and outputs
 
 After training, `best.pt` is evaluated on val and test. Metrics: accuracy, precision, recall, F1 and
 ROC AUC (one-vs-rest), each in **macro** and **weighted** averaging, plus per-class precision / recall / F1 /
@@ -142,49 +177,57 @@ Each run writes to `outputs/<exp_name>/` (and `outputs/<exp_name>.zip`):
 | `best.pt`, `last.pt` | checkpoints (weights + config + class names) |
 
 `outputs/results.csv` gets one row per run for comparing experiments.
+Model checkpoints (`*.pt`) are not tracked by git.
 
-### 2.7 How to run
+### 2.6 How to run
 
 ```bash
 pip install -r requirements.txt
-python check_data.py                                     # verify dataset and label mapping
-python main.py general.debug=true                        # quick sanity run: 128 images per split, 1 epoch
-python main.py                                           # baseline run with config.py defaults
-python main.py general.exp_name=resnet18_cbam_224 model.attention=cbam   # ResNet18 + CBAM
-python main.py general.exp_name=r18_320 data.img_size=320 training.epochs=20   # override any parameter
+python check_data.py                       # verify dataset and label mapping
+python main.py general.debug=true          # quick sanity run: 128 images per split, 1 epoch
+python main.py                             # ConvNeXt-Tiny @ 384 (config.py defaults)
 ```
 
 Any parameter from `config.py` can be overridden as `section.key=value`; an unknown key raises an error.
+The previous experiments are reproduced with:
+
+```bash
+# experiment 1: ResNet18 baseline
+python main.py general.exp_name=resnet18_224 model.name=resnet18 data.img_size=224 training.batch_size=64 \
+    training.lr=3e-4 training.weight_decay=1e-4 training.no_weight_decay_1d=false
+# experiment 2: ResNet18 + CBAM (same as above plus)
+    model.attention=cbam general.exp_name=resnet18_cbam_224
+```
 
 **Kaggle** (dataset added via *Add Input*, *Accelerator: GPU*, *Internet: On*):
 
 ```python
-!git clone -q -b cbam https://github.com/VladislavZherikhov/DLCV_course_project.git /kaggle/working/repo
+!git clone -q -b convnext https://github.com/VladislavZherikhov/DLCV_course_project.git /kaggle/working/repo
 %cd /kaggle/working/repo
 !pip install -q omegaconf
-!python check_data.py
-!python -u main.py general.exp_name=resnet18_cbam_224 model.attention=cbam
+!python -u main.py
 ```
-
-The exact notebook used for the experiment is [`experiment/baseline.ipynb`](experiment/baseline.ipynb).
 
 **Evaluate a checkpoint locally / predict on custom images:**
 
 ```bash
-python predict.py --ckpt outputs/resnet18_224/best.pt --data_root /path/to/D-Fire --split test
-python predict.py --ckpt outputs/resnet18_224/best.pt --images my_photos/
+python predict.py --ckpt outputs/convnext_tiny_384/best.pt --data_root /path/to/D-Fire --split test
+python predict.py --ckpt outputs/convnext_tiny_384/best.pt --images my_photos/
 ```
 
 ---
 
-## 3. Experiment: `resnet18_224`
+## 3. Experiment 1: ResNet18 baseline
+
+Results: [`experiment/results/baseline_resnet18_224`](experiment/results/baseline_resnet18_224),
+notebook: [`experiment/baseline.ipynb`](experiment/baseline.ipynb).
 
 ### 3.1 Setup
 
 | | |
 |---|---|
 | environment | Kaggle notebook, 1 × NVIDIA Tesla T4 (16 GB), Python 3.13, PyTorch 2.11 (CUDA 12.8) |
-| configuration | defaults from `config.py` (see [`config.yaml`](experiment/results/resnet18_224/config.yaml)) |
+| configuration | ResNet18 @ 224 (see [`config.yaml`](experiment/results/baseline_resnet18_224/config.yaml)) |
 | training time | 29 min 15 s for 15 epochs × 228 steps (~85 s per epoch; the first epoch took 554 s due to cold reads from `/kaggle/input`) |
 | peak GPU memory | 0.93 GB |
 | best checkpoint | epoch 15 (last epoch) |
@@ -239,7 +282,7 @@ Val and test results agree closely, so the val split is a reliable proxy for the
 | `fire` | 3 | 4 | **172** | 41 |
 | `fire_smoke` | 2 | 40 | 31 | **822** |
 
-![Test confusion matrix (normalized)](experiment/results/resnet18_224/test_confusion_matrix_norm.png)
+![Test confusion matrix (normalized)](experiment/results/baseline_resnet18_224/test_confusion_matrix_norm.png)
 
 255 of 4306 test images are misclassified. The main error types are:
 
@@ -254,7 +297,7 @@ Derived from the same matrix, the model works well as a binary alarm (**fire or 
 recall 0.979 (2253 / 2301), precision 0.975 (2253 / 2311). Detecting **any fire** (`fire` or `fire_smoke`)
 gives recall 0.956 and precision 0.957.
 
-![Test ROC and PR curves](experiment/results/resnet18_224/test_roc_pr_curves.png)
+![Test ROC and PR curves](experiment/results/baseline_resnet18_224/test_roc_pr_curves.png)
 
 ### 3.6 Training dynamics
 
@@ -266,7 +309,7 @@ gives recall 0.956 and precision 0.957.
 | 11 | 0.050 | 0.984 | 0.476 | 0.934 | 0.892 | 0.762 |
 | 15 | 0.026 | 0.992 | 0.534 | **0.939** | **0.901** | **0.787** |
 
-![Training curves](experiment/results/resnet18_224/training_curves.png)
+![Training curves](experiment/results/baseline_resnet18_224/training_curves.png)
 
 - **Val F1 and accuracy keep improving until the last epoch**, while the learning rate decays to almost zero.
   The best checkpoint is the final one.
@@ -277,28 +320,92 @@ gives recall 0.956 and precision 0.957.
 
 ### 3.7 Error analysis
 
-![Most confident test errors](experiment/results/resnet18_224/test_errors.png)
+![Most confident test errors](experiment/results/baseline_resnet18_224/test_errors.png)
 
 Many of the most confident errors appear to be **annotation ambiguity** rather than model failures.
 Examples: images labelled `fire` with clearly visible smoke and predicted as `fire_smoke`; images labelled `smoke`
 with visible flames; sunsets labelled `fire`. The rest are hard cases: night scenes with small light sources,
 distant smoke, and clouds that look like smoke.
 
-### 3.8 Conclusions and next steps
+### 3.8 Conclusions
 
 The ResNet18 baseline achieves **0.941 accuracy / 0.907 F1 macro** on the D-Fire test set. It reliably separates
 "something is burning" from "nothing" (≈ 0.98 recall / precision). The main difficulty is the fine-grained
-`fire` vs `fire_smoke` distinction for the rare `fire` class.
+`fire` vs `fire_smoke` distinction for the rare `fire` class. Small objects are limited by the 224×224 input
+(7×7 final feature map), and the model becomes over-confident towards the end of training.
 
-Possible improvements:
+---
 
-1. **Higher input resolution** (`data.img_size=320/384`): small and distant fire and smoke get lost at 224×224,
-   since the final feature map is only 7×7.
-2. **Regularization against over-confidence:** label smoothing, stronger augmentations (e.g. mixup/cutmix),
-   larger weight decay.
-3. **Larger or more modern backbones:** ResNet50, EfficientNet, ConvNeXt.
-4. **Longer training:** val metrics were still improving at epoch 15.
-5. **Threshold tuning / multi-label formulation:** predicting `fire` and `smoke` as two independent binary outputs
-   naturally matches how the 4 classes are built.
+## 4. Experiment 2: ResNet18 + CBAM
 
-Model checkpoints (`*.pt`, ~45 MB each) are not tracked by git.
+Results: [`experiment/results/cbam_pipeline_resnet18_224`](experiment/results/cbam_pipeline_resnet18_224),
+notebook: [`experiment/cbam_pipeline.ipynb`](experiment/cbam_pipeline.ipynb).
+
+**Hypothesis.** Global average pooling dilutes faint smoke in one or two cells of the 7×7 feature map, which
+contributes to the `fire` ↔ `fire_smoke` errors. Spatial attention should let the network up-weight such regions.
+
+**Setup.** Identical to experiment 1 (same data split, seed, augmentations, optimizer, schedule, 15 epochs), plus
+CBAM in all 8 residual blocks (section 2.3.3). Training time: 25 min 24 s; the per-epoch time (~85 s) is the same
+as for the baseline, so CBAM adds no noticeable cost.
+
+### 4.1 Results (test)
+
+| metric | baseline | CBAM | Δ |
+|---|---|---|---|
+| accuracy | **0.9408** | 0.9322 | −0.0086 |
+| precision macro | **0.9116** | 0.8895 | −0.0221 |
+| recall macro | **0.9018** | 0.8900 | −0.0118 |
+| **F1 macro** | **0.9065** | 0.8898 | **−0.0167** |
+| F1 weighted | **0.9406** | 0.9322 | −0.0084 |
+| ROC AUC macro | 0.9757 | **0.9792** | +0.0035 |
+| ROC AUC weighted | 0.9875 | 0.9875 | 0.0000 |
+| errors | **255** | 292 | +37 |
+
+| class F1 (test) | baseline | CBAM | Δ |
+|---|---|---|---|
+| `none` | **0.9735** | 0.9690 | −0.0045 |
+| `smoke` | **0.9316** | 0.9231 | −0.0085 |
+| `fire` | **0.8094** | 0.7636 | **−0.0458** |
+| `fire_smoke` | **0.9113** | 0.9033 | −0.0080 |
+
+On val the picture is the same: F1 macro 0.9007 → 0.8884, accuracy 0.9385 → 0.9334.
+
+### 4.2 Statistical significance
+
+| split | only baseline correct | only CBAM correct | McNemar p-value | Δ F1 macro, 95% bootstrap CI |
+|---|---|---|---|---|
+| val | 59 | 46 | 0.24 | −0.012 [−0.026, +0.001] |
+| test | 108 | 71 | **0.007** | −0.017 [−0.028, −0.006] |
+
+On the test set the degradation is statistically significant; on val it is not. Both models were trained once,
+so these tests account for the sampling of evaluation images but not for run-to-run training variance.
+
+### 4.3 Analysis
+
+- **The largest drop is in `fire` precision** (0.839 → 0.764): CBAM predicts `fire` for `fire_smoke` images more often
+  (43 vs 31 errors). The class the attention was supposed to help became worse.
+- **Slower start.** Val F1 at epochs 2–4 was 0.75–0.77 vs 0.79–0.84 for the baseline. Although the network starts
+  exactly as the baseline (identity init), the ×10 learning rate (3e-3) for the attention modules seems to perturb
+  the pretrained features early in training.
+- **Stronger over-confidence:** final val loss 0.60 vs 0.53 at a similar train loss.
+- **Little room for spatial attention:** in the last stages the maps are only 14×14 and 7×7, so a 7×7 spatial
+  attention kernel covers almost the whole map.
+- **Ranking vs decisions:** ROC AUC macro slightly improved while F1 dropped, i.e. the probability ranking is
+  comparable, and the loss comes from argmax decisions at the `fire` / `fire_smoke` boundary.
+
+**Conclusion.** In this configuration CBAM does not improve ResNet18 on D-Fire; it slightly but significantly
+reduces test F1 macro (−1.7 pp). Possible follow-ups: `training.attention_lr_mult=1`, a higher input resolution
+(larger feature maps), and several seeds per model.
+
+---
+
+## 5. Experiment 3: ConvNeXt-Tiny
+
+**Hypothesis.** The main limitations of the baseline are the capacity of ResNet18 and the 224×224 input, at which small
+fire / smoke regions shrink to a few pixels. A modern, stronger backbone (ConvNeXt-Tiny, 82.5% vs 69.8% ImageNet top-1)
+at 384×384 (12×12 final feature map) should improve the fine-grained `fire` vs `fire_smoke` distinction.
+
+**Setup.** ConvNeXt-Tiny @ 384, settings from section 2.4; data split, augmentations, loss and schedule are the same
+as in experiments 1–2.
+
+*Results pending.*
