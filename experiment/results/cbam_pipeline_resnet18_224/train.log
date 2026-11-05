@@ -1,0 +1,383 @@
+11:22:40 | Experiment: resnet18_cbam_224
+11:22:40 | Output dir: /kaggle/working/outputs/resnet18_cbam_224
+11:22:41 | System: {"python": "3.13.16", "torch": "2.11.0+cu130", "cuda_available": true, "cpu_count": 4, "gpu": "Tesla T4", "gpu_count": 2, "gpu_memory_gb": 14.6, "cuda": "13.0"}
+11:22:41 | Config:
+general:
+  exp_name: resnet18_cbam_224
+  seed: 42
+  debug: false
+  debug_samples: 128
+paths:
+  data_root: /kaggle/input
+  out_dir: /kaggle/working/outputs
+data:
+  smoke_id: 0
+  fire_id: 1
+  val_size: 0.15
+  img_size: 224
+model:
+  name: resnet18
+  pretrained: true
+  attention: cbam
+  cbam:
+    reduction: 16
+    kernel_size: 7
+    identity_init: true
+training:
+  epochs: 15
+  batch_size: 64
+  lr: 0.0003
+  weight_decay: 0.0001
+  attention_lr_mult: 10
+  mixed_precision: true
+  class_weights: true
+  early_stopping: 5
+  monitor: f1_macro
+  num_workers: 4
+  progress_bar: false
+logging:
+  log_interval: 50
+  n_error_examples: 24
+  zip_outputs: true
+
+11:22:54 | Data root: /kaggle/input (parsed in 13.4s)
+11:22:54 | Class distribution:
+            train   val  test train % val % test %
+none         6658  1175  2005    45.5  45.5   46.6
+smoke        3979   702  1186    27.2  27.2   27.5
+fire          802   142   220     5.5   5.5    5.1
+fire_smoke   3198   565   895    21.8  21.9   20.8
+TOTAL       14637  2584  4306                     
+11:22:54 | Model: resnet18 (pretrained=True, attention=cbam), 11.27M parameters
+11:22:54 | Class weights: {'none': 0.55, 'smoke': 0.92, 'fire': 4.563, 'fire_smoke': 1.144}
+11:22:54 | Training: 15 epochs x 228 steps, batch 64, AMP True, optimizer AdamW, scheduler cosine (lr -> lr/100)
+11:22:54 | Attention params: 89,864 with lr 3.0e-03 (x10)
+11:22:54 | 
+========== Epoch 1/15 | lr 3.00e-04 ==========
+11:24:04 |   [ep 1] step   50/228 | loss 1.1174 (avg 0.8588) | lr 3.00e-04 | 46 img/s | elapsed 1m 09s | gpu mem 1.2 GB
+11:24:58 |   [ep 1] step  100/228 | loss 0.4857 (avg 0.7584) | lr 3.00e-04 | 59 img/s | elapsed 2m 03s | gpu mem 1.2 GB
+11:25:57 |   [ep 1] step  150/228 | loss 0.5496 (avg 0.7130) | lr 3.00e-04 | 54 img/s | elapsed 3m 02s | gpu mem 1.2 GB
+11:26:51 |   [ep 1] step  200/228 | loss 0.3455 (avg 0.6726) | lr 3.00e-04 | 59 img/s | elapsed 3m 56s | gpu mem 1.2 GB
+11:27:23 |   [ep 1] step  228/228 | loss 0.6148 (avg 0.6513) | lr 3.00e-04 | 57 img/s | elapsed 4m 28s | gpu mem 1.2 GB
+11:28:11 | Epoch 1/15 done in 5m 16s (train 4m 28s, val 0m 47s) | elapsed 5m 16s | ETA 1h 13m 45s | gpu mem 1.2 GB
+11:28:11 |   train | loss 0.6513 | accuracy 0.7529 | f1_macro 0.6983 | f1_weighted 0.7628  (with augmentations)
+11:28:11 |   val   | loss 0.5221 | accuracy 0.8069 | precision_macro 0.7363 | recall_macro 0.8050 | f1_macro 0.7585 | roc_auc_macro 0.9546 | precision_weighted 0.8308 | recall_weighted 0.8069 | f1_weighted 0.8134 | roc_auc_weighted 0.9540
+11:28:11 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9426  0.7966  0.8635   0.9606         0.9550     1175
+smoke          0.7547  0.8063  0.7796   0.9294         0.8243      702
+fire           0.4625  0.7817  0.5812   0.9591         0.6910      142
+fire_smoke     0.7854  0.8354  0.8096   0.9694         0.8848      565
+11:28:11 |   >>> new best val f1_macro: 0.7585 (was 0.0000) -> saved best.pt
+11:28:11 | 
+========== Epoch 2/15 | lr 2.97e-04 ==========
+11:28:30 |   [ep 2] step   50/228 | loss 0.3627 (avg 0.4269) | lr 2.97e-04 | 169 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:28:46 |   [ep 2] step  100/228 | loss 0.4706 (avg 0.4607) | lr 2.97e-04 | 204 img/s | elapsed 0m 34s | gpu mem 1.2 GB
+11:29:02 |   [ep 2] step  150/228 | loss 0.7055 (avg 0.4574) | lr 2.97e-04 | 201 img/s | elapsed 0m 50s | gpu mem 1.2 GB
+11:29:17 |   [ep 2] step  200/228 | loss 0.4698 (avg 0.4469) | lr 2.97e-04 | 218 img/s | elapsed 1m 05s | gpu mem 1.2 GB
+11:29:25 |   [ep 2] step  228/228 | loss 0.4483 (avg 0.4458) | lr 2.97e-04 | 215 img/s | elapsed 1m 13s | gpu mem 1.2 GB
+11:29:38 | Epoch 2/15 done in 1m 26s (train 1m 13s, val 0m 12s) | elapsed 6m 43s | ETA 43m 41s | gpu mem 1.2 GB
+11:29:38 |   train | loss 0.4458 | accuracy 0.8501 | f1_macro 0.7969 | f1_weighted 0.8552  (with augmentations)
+11:29:38 |   val   | loss 0.4949 | accuracy 0.8139 | precision_macro 0.7429 | recall_macro 0.8032 | f1_macro 0.7465 | roc_auc_macro 0.9627 | precision_weighted 0.8490 | recall_weighted 0.8139 | f1_weighted 0.8235 | roc_auc_weighted 0.9672
+11:29:38 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9158  0.8791  0.8971   0.9741         0.9697     1175
+smoke          0.8295  0.8177  0.8235   0.9581         0.9032      702
+fire           0.3723  0.8521  0.5182   0.9500         0.6790      142
+fire_smoke     0.8542  0.6637  0.7470   0.9685         0.8819      565
+11:29:38 |   no improvement for 1 epoch(s), best f1_macro 0.7585 at epoch 1
+11:29:39 | 
+========== Epoch 3/15 | lr 2.87e-04 ==========
+11:29:57 |   [ep 3] step   50/228 | loss 0.4145 (avg 0.3881) | lr 2.87e-04 | 169 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:30:13 |   [ep 3] step  100/228 | loss 0.4142 (avg 0.3585) | lr 2.87e-04 | 210 img/s | elapsed 0m 34s | gpu mem 1.2 GB
+11:30:29 |   [ep 3] step  150/228 | loss 0.4551 (avg 0.3693) | lr 2.87e-04 | 201 img/s | elapsed 0m 50s | gpu mem 1.2 GB
+11:30:44 |   [ep 3] step  200/228 | loss 0.6545 (avg 0.3697) | lr 2.87e-04 | 212 img/s | elapsed 1m 05s | gpu mem 1.2 GB
+11:30:52 |   [ep 3] step  228/228 | loss 0.2804 (avg 0.3751) | lr 2.87e-04 | 222 img/s | elapsed 1m 13s | gpu mem 1.2 GB
+11:31:05 | Epoch 3/15 done in 1m 26s (train 1m 13s, val 0m 12s) | elapsed 8m 10s | ETA 32m 40s | gpu mem 1.2 GB
+11:31:05 |   train | loss 0.3751 | accuracy 0.8765 | f1_macro 0.8231 | f1_weighted 0.8811  (with augmentations)
+11:31:05 |   val   | loss 0.4559 | accuracy 0.8266 | precision_macro 0.7574 | recall_macro 0.8223 | f1_macro 0.7652 | roc_auc_macro 0.9680 | precision_weighted 0.8611 | recall_weighted 0.8266 | f1_weighted 0.8368 | roc_auc_weighted 0.9709
+11:31:05 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9275  0.8715  0.8986   0.9750         0.9719     1175
+smoke          0.8217  0.8205  0.8211   0.9605         0.9025      702
+fire           0.3905  0.8662  0.5383   0.9578         0.7315      142
+fire_smoke     0.8901  0.7310  0.8027   0.9786         0.9209      565
+11:31:05 |   >>> new best val f1_macro: 0.7652 (was 0.7585) -> saved best.pt
+11:31:06 | 
+========== Epoch 4/15 | lr 2.72e-04 ==========
+11:31:24 |   [ep 4] step   50/228 | loss 0.2161 (avg 0.2823) | lr 2.72e-04 | 172 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:31:40 |   [ep 4] step  100/228 | loss 0.2107 (avg 0.2765) | lr 2.72e-04 | 208 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:31:55 |   [ep 4] step  150/228 | loss 0.2518 (avg 0.2948) | lr 2.72e-04 | 203 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:32:11 |   [ep 4] step  200/228 | loss 0.2165 (avg 0.3064) | lr 2.72e-04 | 210 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:32:19 |   [ep 4] step  228/228 | loss 0.3869 (avg 0.3150) | lr 2.72e-04 | 228 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:32:31 | Epoch 4/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 9m 36s | ETA 26m 26s | gpu mem 1.2 GB
+11:32:31 |   train | loss 0.3150 | accuracy 0.8995 | f1_macro 0.8557 | f1_weighted 0.9020  (with augmentations)
+11:32:31 |   val   | loss 0.4474 | accuracy 0.8375 | precision_macro 0.7643 | recall_macro 0.8214 | f1_macro 0.7680 | roc_auc_macro 0.9709 | precision_weighted 0.8710 | recall_weighted 0.8375 | f1_weighted 0.8470 | roc_auc_weighted 0.9757
+11:32:31 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9272  0.9106  0.9188   0.9809         0.9790     1175
+smoke          0.8729  0.8219  0.8467   0.9709         0.9319      702
+fire           0.3829  0.8521  0.5284   0.9556         0.6920      142
+fire_smoke     0.8742  0.7009  0.7780   0.9761         0.8969      565
+11:32:31 |   >>> new best val f1_macro: 0.7680 (was 0.7652) -> saved best.pt
+11:32:32 | 
+========== Epoch 5/15 | lr 2.51e-04 ==========
+11:32:51 |   [ep 5] step   50/228 | loss 0.2713 (avg 0.2648) | lr 2.51e-04 | 174 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:33:06 |   [ep 5] step  100/228 | loss 0.2835 (avg 0.2580) | lr 2.51e-04 | 212 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:33:22 |   [ep 5] step  150/228 | loss 0.3125 (avg 0.2746) | lr 2.51e-04 | 201 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:33:36 |   [ep 5] step  200/228 | loss 0.2024 (avg 0.2700) | lr 2.51e-04 | 216 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:33:45 |   [ep 5] step  228/228 | loss 0.4749 (avg 0.2717) | lr 2.51e-04 | 219 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:33:57 | Epoch 5/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 11m 02s | ETA 22m 05s | gpu mem 1.2 GB
+11:33:57 |   train | loss 0.2717 | accuracy 0.9150 | f1_macro 0.8737 | f1_weighted 0.9174  (with augmentations)
+11:33:57 |   val   | loss 0.4453 | accuracy 0.8924 | precision_macro 0.8396 | recall_macro 0.8363 | f1_macro 0.8362 | roc_auc_macro 0.9774 | precision_weighted 0.8943 | recall_weighted 0.8924 | f1_weighted 0.8914 | roc_auc_weighted 0.9823
+11:33:57 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9132  0.9668  0.9392   0.9873         0.9848     1175
+smoke          0.9332  0.7963  0.8593   0.9752         0.9373      702
+fire           0.6419  0.6690  0.6552   0.9610         0.7394      142
+fire_smoke     0.8702  0.9133  0.8912   0.9863         0.9493      565
+11:33:57 |   >>> new best val f1_macro: 0.8362 (was 0.7680) -> saved best.pt
+11:33:58 | 
+========== Epoch 6/15 | lr 2.26e-04 ==========
+11:34:17 |   [ep 6] step   50/228 | loss 0.4071 (avg 0.2131) | lr 2.26e-04 | 171 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:34:32 |   [ep 6] step  100/228 | loss 0.1438 (avg 0.2164) | lr 2.26e-04 | 214 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:34:48 |   [ep 6] step  150/228 | loss 0.1624 (avg 0.2129) | lr 2.26e-04 | 204 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:35:02 |   [ep 6] step  200/228 | loss 0.2355 (avg 0.2101) | lr 2.26e-04 | 217 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:35:11 |   [ep 6] step  228/228 | loss 0.2211 (avg 0.2083) | lr 2.26e-04 | 218 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:35:23 | Epoch 6/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 12m 28s | ETA 18m 43s | gpu mem 1.2 GB
+11:35:23 |   train | loss 0.2083 | accuracy 0.9319 | f1_macro 0.8974 | f1_weighted 0.9334  (with augmentations)
+11:35:23 |   val   | loss 0.4846 | accuracy 0.9036 | precision_macro 0.8592 | recall_macro 0.8563 | f1_macro 0.8573 | roc_auc_macro 0.9765 | precision_weighted 0.9054 | recall_weighted 0.9036 | f1_weighted 0.9040 | roc_auc_weighted 0.9836
+11:35:23 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9665  0.9336  0.9498   0.9920         0.9910     1175
+smoke          0.8468  0.9131  0.8787   0.9752         0.9344      702
+fire           0.7279  0.6972  0.7122   0.9553         0.7701      142
+fire_smoke     0.8957  0.8814  0.8885   0.9836         0.9381      565
+11:35:23 |   >>> new best val f1_macro: 0.8573 (was 0.8362) -> saved best.pt
+11:35:24 | 
+========== Epoch 7/15 | lr 1.97e-04 ==========
+11:35:43 |   [ep 7] step   50/228 | loss 0.2784 (avg 0.1766) | lr 1.97e-04 | 172 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:35:58 |   [ep 7] step  100/228 | loss 0.1595 (avg 0.1771) | lr 1.97e-04 | 217 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:36:13 |   [ep 7] step  150/228 | loss 0.2005 (avg 0.1815) | lr 1.97e-04 | 206 img/s | elapsed 0m 48s | gpu mem 1.2 GB
+11:36:28 |   [ep 7] step  200/228 | loss 0.2361 (avg 0.1809) | lr 1.97e-04 | 210 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:36:37 |   [ep 7] step  228/228 | loss 0.2219 (avg 0.1828) | lr 1.97e-04 | 217 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:36:49 | Epoch 7/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 13m 54s | ETA 15m 54s | gpu mem 1.2 GB
+11:36:49 |   train | loss 0.1828 | accuracy 0.9417 | f1_macro 0.9119 | f1_weighted 0.9428  (with augmentations)
+11:36:49 |   val   | loss 0.4055 | accuracy 0.9176 | precision_macro 0.8622 | recall_macro 0.8811 | f1_macro 0.8699 | roc_auc_macro 0.9818 | precision_weighted 0.9203 | recall_weighted 0.9176 | f1_weighted 0.9183 | roc_auc_weighted 0.9883
+11:36:49 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9509  0.9719  0.9613   0.9944         0.9933     1175
+smoke          0.9348  0.8789  0.9060   0.9851         0.9609      702
+fire           0.6588  0.7887  0.7179   0.9613         0.7880      142
+fire_smoke     0.9042  0.8850  0.8945   0.9864         0.9430      565
+11:36:49 |   >>> new best val f1_macro: 0.8699 (was 0.8573) -> saved best.pt
+11:36:50 | 
+========== Epoch 8/15 | lr 1.67e-04 ==========
+11:37:09 |   [ep 8] step   50/228 | loss 0.1411 (avg 0.1075) | lr 1.67e-04 | 171 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:37:25 |   [ep 8] step  100/228 | loss 0.1308 (avg 0.1213) | lr 1.67e-04 | 207 img/s | elapsed 0m 34s | gpu mem 1.2 GB
+11:37:40 |   [ep 8] step  150/228 | loss 0.3200 (avg 0.1273) | lr 1.67e-04 | 205 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:37:55 |   [ep 8] step  200/228 | loss 0.0798 (avg 0.1299) | lr 1.67e-04 | 217 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:38:03 |   [ep 8] step  228/228 | loss 0.2762 (avg 0.1269) | lr 1.67e-04 | 228 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:38:15 | Epoch 8/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 15m 20s | ETA 13m 25s | gpu mem 1.2 GB
+11:38:15 |   train | loss 0.1269 | accuracy 0.9588 | f1_macro 0.9355 | f1_weighted 0.9594  (with augmentations)
+11:38:15 |   val   | loss 0.4858 | accuracy 0.9125 | precision_macro 0.8504 | recall_macro 0.8786 | f1_macro 0.8609 | roc_auc_macro 0.9814 | precision_weighted 0.9192 | recall_weighted 0.9125 | f1_weighted 0.9142 | roc_auc_weighted 0.9876
+11:38:15 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9788  0.9438  0.9610   0.9941         0.9933     1175
+smoke          0.8719  0.9501  0.9093   0.9836         0.9586      702
+fire           0.6222  0.7887  0.6957   0.9627         0.7782      142
+fire_smoke     0.9289  0.8319  0.8777   0.9854         0.9477      565
+11:38:15 |   no improvement for 1 epoch(s), best f1_macro 0.8699 at epoch 7
+11:38:16 | 
+========== Epoch 9/15 | lr 1.36e-04 ==========
+11:38:35 |   [ep 9] step   50/228 | loss 0.0225 (avg 0.0944) | lr 1.36e-04 | 171 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:38:50 |   [ep 9] step  100/228 | loss 0.0944 (avg 0.1094) | lr 1.36e-04 | 213 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:39:06 |   [ep 9] step  150/228 | loss 0.2094 (avg 0.1097) | lr 1.36e-04 | 202 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:39:21 |   [ep 9] step  200/228 | loss 0.5827 (avg 0.1111) | lr 1.36e-04 | 213 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:39:29 |   [ep 9] step  228/228 | loss 0.1173 (avg 0.1115) | lr 1.36e-04 | 225 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:39:41 | Epoch 9/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 16m 47s | ETA 11m 11s | gpu mem 1.2 GB
+11:39:41 |   train | loss 0.1115 | accuracy 0.9636 | f1_macro 0.9447 | f1_weighted 0.9640  (with augmentations)
+11:39:41 |   val   | loss 0.5349 | accuracy 0.9191 | precision_macro 0.8679 | recall_macro 0.8677 | f1_macro 0.8675 | roc_auc_macro 0.9798 | precision_weighted 0.9196 | recall_weighted 0.9191 | f1_weighted 0.9191 | roc_auc_weighted 0.9872
+11:39:41 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9617  0.9617  0.9617   0.9935         0.9924     1175
+smoke          0.9302  0.8917  0.9105   0.9830         0.9610      702
+fire           0.7071  0.6972  0.7021   0.9557         0.7629      142
+fire_smoke     0.8725  0.9204  0.8958   0.9870         0.9427      565
+11:39:41 |   no improvement for 2 epoch(s), best f1_macro 0.8699 at epoch 7
+11:39:42 | 
+========== Epoch 10/15 | lr 1.06e-04 ==========
+11:40:01 |   [ep 10] step   50/228 | loss 0.0216 (avg 0.0751) | lr 1.06e-04 | 176 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:40:16 |   [ep 10] step  100/228 | loss 0.0824 (avg 0.0783) | lr 1.06e-04 | 210 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:40:32 |   [ep 10] step  150/228 | loss 0.0461 (avg 0.0814) | lr 1.06e-04 | 202 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:40:47 |   [ep 10] step  200/228 | loss 0.0278 (avg 0.0827) | lr 1.06e-04 | 210 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:40:55 |   [ep 10] step  228/228 | loss 0.0768 (avg 0.0830) | lr 1.06e-04 | 227 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:41:07 | Epoch 10/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 18m 13s | ETA 9m 06s | gpu mem 1.2 GB
+11:41:07 |   train | loss 0.0830 | accuracy 0.9729 | f1_macro 0.9573 | f1_weighted 0.9732  (with augmentations)
+11:41:07 |   val   | loss 0.5594 | accuracy 0.9203 | precision_macro 0.8636 | recall_macro 0.8736 | f1_macro 0.8682 | roc_auc_macro 0.9805 | precision_weighted 0.9217 | recall_weighted 0.9203 | f1_weighted 0.9208 | roc_auc_weighted 0.9884
+11:41:07 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9741  0.9600  0.9670   0.9953         0.9942     1175
+smoke          0.8997  0.9330  0.9161   0.9850         0.9631      702
+fire           0.6797  0.7324  0.7051   0.9548         0.7903      142
+fire_smoke     0.9009  0.8690  0.8847   0.9868         0.9461      565
+11:41:07 |   no improvement for 3 epoch(s), best f1_macro 0.8699 at epoch 7
+11:41:08 | 
+========== Epoch 11/15 | lr 7.73e-05 ==========
+11:41:27 |   [ep 11] step   50/228 | loss 0.1071 (avg 0.0639) | lr 7.73e-05 | 174 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:41:42 |   [ep 11] step  100/228 | loss 0.1583 (avg 0.0669) | lr 7.73e-05 | 212 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:41:58 |   [ep 11] step  150/228 | loss 0.0073 (avg 0.0571) | lr 7.73e-05 | 203 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:42:12 |   [ep 11] step  200/228 | loss 0.0540 (avg 0.0563) | lr 7.73e-05 | 216 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:42:21 |   [ep 11] step  228/228 | loss 0.0589 (avg 0.0577) | lr 7.73e-05 | 213 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:42:34 | Epoch 11/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 19m 39s | ETA 7m 08s | gpu mem 1.2 GB
+11:42:34 |   train | loss 0.0577 | accuracy 0.9809 | f1_macro 0.9686 | f1_weighted 0.9811  (with augmentations)
+11:42:34 |   val   | loss 0.5936 | accuracy 0.9296 | precision_macro 0.8780 | recall_macro 0.8856 | f1_macro 0.8817 | roc_auc_macro 0.9815 | precision_weighted 0.9303 | recall_weighted 0.9296 | f1_weighted 0.9299 | roc_auc_weighted 0.9891
+11:42:34 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9734  0.9668  0.9701   0.9959         0.9949     1175
+smoke          0.9245  0.9245  0.9245   0.9858         0.9671      702
+fire           0.7114  0.7465  0.7285   0.9572         0.7977      142
+fire_smoke     0.9028  0.9044  0.9036   0.9871         0.9497      565
+11:42:34 |   >>> new best val f1_macro: 0.8817 (was 0.8699) -> saved best.pt
+11:42:34 | 
+========== Epoch 12/15 | lr 5.21e-05 ==========
+11:42:53 |   [ep 12] step   50/228 | loss 0.0970 (avg 0.0579) | lr 5.21e-05 | 175 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:43:08 |   [ep 12] step  100/228 | loss 0.0046 (avg 0.0524) | lr 5.21e-05 | 212 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:43:24 |   [ep 12] step  150/228 | loss 0.0329 (avg 0.0506) | lr 5.21e-05 | 202 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:43:39 |   [ep 12] step  200/228 | loss 0.0159 (avg 0.0494) | lr 5.21e-05 | 213 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:43:47 |   [ep 12] step  228/228 | loss 0.0385 (avg 0.0488) | lr 5.21e-05 | 220 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:43:59 | Epoch 12/15 done in 1m 24s (train 1m 12s, val 0m 12s) | elapsed 21m 04s | ETA 5m 16s | gpu mem 1.2 GB
+11:43:59 |   train | loss 0.0488 | accuracy 0.9828 | f1_macro 0.9725 | f1_weighted 0.9829  (with augmentations)
+11:43:59 |   val   | loss 0.6303 | accuracy 0.9311 | precision_macro 0.8920 | recall_macro 0.8770 | f1_macro 0.8836 | roc_auc_macro 0.9812 | precision_weighted 0.9307 | recall_weighted 0.9311 | f1_weighted 0.9307 | roc_auc_weighted 0.9898
+11:43:59 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9751  0.9651  0.9701   0.9967         0.9954     1175
+smoke          0.9196  0.9288  0.9242   0.9866         0.9673      702
+fire           0.7840  0.6901  0.7341   0.9526         0.7955      142
+fire_smoke     0.8893  0.9239  0.9062   0.9888         0.9511      565
+11:43:59 |   >>> new best val f1_macro: 0.8836 (was 0.8817) -> saved best.pt
+11:44:01 | 
+========== Epoch 13/15 | lr 3.14e-05 ==========
+11:44:19 |   [ep 13] step   50/228 | loss 0.0785 (avg 0.0440) | lr 3.14e-05 | 173 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:44:34 |   [ep 13] step  100/228 | loss 0.0713 (avg 0.0441) | lr 3.14e-05 | 215 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:44:50 |   [ep 13] step  150/228 | loss 0.0715 (avg 0.0423) | lr 3.14e-05 | 202 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:45:05 |   [ep 13] step  200/228 | loss 0.0353 (avg 0.0437) | lr 3.14e-05 | 215 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:45:13 |   [ep 13] step  228/228 | loss 0.0109 (avg 0.0429) | lr 3.14e-05 | 221 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:45:26 | Epoch 13/15 done in 1m 24s (train 1m 12s, val 0m 12s) | elapsed 22m 31s | ETA 3m 27s | gpu mem 1.2 GB
+11:45:26 |   train | loss 0.0429 | accuracy 0.9858 | f1_macro 0.9789 | f1_weighted 0.9859  (with augmentations)
+11:45:26 |   val   | loss 0.5966 | accuracy 0.9334 | precision_macro 0.8862 | recall_macro 0.8907 | f1_macro 0.8884 | roc_auc_macro 0.9826 | precision_weighted 0.9339 | recall_weighted 0.9334 | f1_weighted 0.9337 | roc_auc_weighted 0.9901
+11:45:26 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9776  0.9668  0.9722   0.9967         0.9958     1175
+smoke          0.9213  0.9345  0.9279   0.9865         0.9687      702
+fire           0.7379  0.7535  0.7456   0.9587         0.7989      142
+fire_smoke     0.9080  0.9080  0.9080   0.9885         0.9515      565
+11:45:26 |   >>> new best val f1_macro: 0.8884 (was 0.8836) -> saved best.pt
+11:45:26 | 
+========== Epoch 14/15 | lr 1.58e-05 ==========
+11:45:45 |   [ep 14] step   50/228 | loss 0.0151 (avg 0.0402) | lr 1.58e-05 | 175 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:46:00 |   [ep 14] step  100/228 | loss 0.0160 (avg 0.0347) | lr 1.58e-05 | 205 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:46:16 |   [ep 14] step  150/228 | loss 0.0223 (avg 0.0339) | lr 1.58e-05 | 205 img/s | elapsed 0m 49s | gpu mem 1.2 GB
+11:46:31 |   [ep 14] step  200/228 | loss 0.0231 (avg 0.0346) | lr 1.58e-05 | 210 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:46:39 |   [ep 14] step  228/228 | loss 0.0145 (avg 0.0350) | lr 1.58e-05 | 232 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:46:52 | Epoch 14/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 23m 57s | ETA 1m 42s | gpu mem 1.2 GB
+11:46:52 |   train | loss 0.0350 | accuracy 0.9899 | f1_macro 0.9828 | f1_weighted 0.9899  (with augmentations)
+11:46:52 |   val   | loss 0.6148 | accuracy 0.9327 | precision_macro 0.8824 | recall_macro 0.8875 | f1_macro 0.8849 | roc_auc_macro 0.9822 | precision_weighted 0.9333 | recall_weighted 0.9327 | f1_weighted 0.9329 | roc_auc_weighted 0.9901
+11:46:52 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9793  0.9651  0.9721   0.9967         0.9957     1175
+smoke          0.9228  0.9359  0.9293   0.9872         0.9693      702
+fire           0.7241  0.7394  0.7317   0.9567         0.8033      142
+fire_smoke     0.9033  0.9097  0.9065   0.9883         0.9516      565
+11:46:52 |   no improvement for 1 epoch(s), best f1_macro 0.8884 at epoch 13
+11:46:52 | 
+========== Epoch 15/15 | lr 6.25e-06 ==========
+11:47:11 |   [ep 15] step   50/228 | loss 0.0078 (avg 0.0264) | lr 6.25e-06 | 173 img/s | elapsed 0m 18s | gpu mem 1.2 GB
+11:47:26 |   [ep 15] step  100/228 | loss 0.0390 (avg 0.0259) | lr 6.25e-06 | 209 img/s | elapsed 0m 33s | gpu mem 1.2 GB
+11:47:41 |   [ep 15] step  150/228 | loss 0.0101 (avg 0.0300) | lr 6.25e-06 | 213 img/s | elapsed 0m 48s | gpu mem 1.2 GB
+11:47:57 |   [ep 15] step  200/228 | loss 0.0673 (avg 0.0338) | lr 6.25e-06 | 208 img/s | elapsed 1m 04s | gpu mem 1.2 GB
+11:48:05 |   [ep 15] step  228/228 | loss 0.0037 (avg 0.0324) | lr 6.25e-06 | 215 img/s | elapsed 1m 12s | gpu mem 1.2 GB
+11:48:18 | Epoch 15/15 done in 1m 25s (train 1m 12s, val 0m 12s) | elapsed 25m 23s | ETA 0m 00s | gpu mem 1.2 GB
+11:48:18 |   train | loss 0.0324 | accuracy 0.9890 | f1_macro 0.9820 | f1_weighted 0.9891  (with augmentations)
+11:48:18 |   val   | loss 0.6041 | accuracy 0.9354 | precision_macro 0.8862 | recall_macro 0.8881 | f1_macro 0.8871 | roc_auc_macro 0.9830 | precision_weighted 0.9357 | recall_weighted 0.9354 | f1_weighted 0.9355 | roc_auc_weighted 0.9905
+11:48:18 |   val per class:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9802  0.9685  0.9743   0.9970         0.9952     1175
+smoke          0.9258  0.9416  0.9336   0.9875         0.9692      702
+fire           0.7324  0.7324  0.7324   0.9586         0.8096      142
+fire_smoke     0.9065  0.9097  0.9081   0.9889         0.9545      565
+11:48:18 |   no improvement for 2 epoch(s), best f1_macro 0.8884 at epoch 13
+11:48:18 | 
+Training finished in 25m 24s. Best val f1_macro: 0.8884 (epoch 13)
+11:48:18 | 
+Loaded best.pt (epoch 13) for final evaluation
+11:48:34 | 
+==================== VAL | best epoch 13 | 2584 images | 12.6s (205 img/s) ====================
+  accuracy             0.9334
+  precision_macro      0.8862
+  recall_macro         0.8907
+  f1_macro             0.8884
+  roc_auc_macro        0.9826
+  precision_weighted   0.9339
+  recall_weighted      0.9334
+  f1_weighted          0.9337
+  roc_auc_weighted     0.9901
+
+Per-class metrics:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9776  0.9668  0.9722   0.9967         0.9958     1175
+smoke          0.9213  0.9345  0.9279   0.9865         0.9687      702
+fire           0.7379  0.7535  0.7456   0.9587         0.7989      142
+fire_smoke     0.9080  0.9080  0.9080   0.9885         0.9515      565
+
+Confusion matrix:
+                 pred_none  pred_smoke  pred_fire  pred_fire_smoke
+true_none             1136          33          4                2
+true_smoke              24         656          2               20
+true_fire                1           4        107               30
+true_fire_smoke          1          19         32              513
+11:49:55 | 
+==================== TEST | best epoch 13 | 4306 images | 79.5s (54 img/s) ====================
+  accuracy             0.9322
+  precision_macro      0.8895
+  recall_macro         0.8900
+  f1_macro             0.8898
+  roc_auc_macro        0.9792
+  precision_weighted   0.9323
+  recall_weighted      0.9322
+  f1_weighted          0.9322
+  roc_auc_weighted     0.9875
+
+Per-class metrics:
+            precision  recall      f1  roc_auc  avg_precision  support
+class                                                                 
+none           0.9710  0.9671  0.9690   0.9941         0.9926     2005
+smoke          0.9197  0.9266  0.9231   0.9847         0.9584     1186
+fire           0.7636  0.7636  0.7636   0.9531         0.8047      220
+fire_smoke     0.9038  0.9028  0.9033   0.9847         0.9398      895
+
+Confusion matrix:
+                 pred_none  pred_smoke  pred_fire  pred_fire_smoke
+true_none             1939          49          4               13
+true_smoke              48        1099          5               34
+true_fire                8           5        168               39
+true_fire_smoke          2          42         43              808
+11:49:55 | 
+Done in 27m 15s (training 25m 24s). TEST: accuracy 0.9322 | f1_macro 0.8898 | f1_weighted 0.9322 | roc_auc_macro 0.9792
+11:49:55 | Files: best.pt, class_distribution.csv, config.yaml, labels.csv, last.pt, log.csv, summary.json, test_confusion_matrix.csv, test_confusion_matrix.png, test_confusion_matrix_norm.png, test_errors.png, test_metrics.json, test_per_class.csv, test_predictions.csv, test_report.txt, test_roc_pr_curves.png, train.log, training_curves.png, val_confusion_matrix.csv, val_confusion_matrix.png, val_confusion_matrix_norm.png, val_errors.png, val_metrics.json, val_per_class.csv, val_predictions.csv, val_report.txt, val_roc_pr_curves.png
