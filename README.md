@@ -5,9 +5,9 @@ into 4 classes (`none`, `smoke`, `fire`, `fire_smoke`) with ImageNet-pretrained 
 
 | experiment | model | input | test accuracy | test F1 macro | test F1 `fire` | test ROC AUC macro |
 |---|---|---|---|---|---|---|
-| [1. Baseline](#3-experiment-1-resnet18-baseline) | ResNet18 | 224 | **0.9408** | **0.9065** | **0.8094** | 0.9757 |
-| [2. CBAM](#4-experiment-2-resnet18--cbam) | ResNet18 + CBAM | 224 | 0.9322 | 0.8898 | 0.7636 | **0.9792** |
-| [3. ConvNeXt](#5-experiment-3-convnext-tiny) | ConvNeXt-Tiny | 384 | *pending* | | | |
+| [1. Baseline](#3-experiment-1-resnet18-baseline) | ResNet18 | 224 | 0.9408 | 0.9065 | **0.8094** | 0.9757 |
+| [2. CBAM](#4-experiment-2-resnet18--cbam) | ResNet18 + CBAM | 224 | 0.9322 | 0.8898 | 0.7636 | 0.9792 |
+| [3. ConvNeXt](#5-experiment-3-convnext-tiny) | ConvNeXt-Tiny | 384 | **0.9487** | **0.9124** | 0.8065 | **0.9892** |
 
 ---
 
@@ -30,6 +30,7 @@ into 4 classes (`none`, `smoke`, `fire`, `fire_smoke`) with ImageNet-pretrained 
     └── results/
         ├── baseline_resnet18_224/           # experiment 1: logs, metrics, plots, predictions
         ├── cbam_pipeline_resnet18_224/      # experiment 2
+        ├── convnext/                        # experiment 3
         └── resnet18_224_debug/              # pipeline sanity check (128 images per split, 1 epoch)
 ```
 
@@ -405,7 +406,75 @@ reduces test F1 macro (−1.7 pp). Possible follow-ups: `training.attention_lr_m
 fire / smoke regions shrink to a few pixels. A modern, stronger backbone (ConvNeXt-Tiny, 82.5% vs 69.8% ImageNet top-1)
 at 384×384 (12×12 final feature map) should improve the fine-grained `fire` vs `fire_smoke` distinction.
 
-**Setup.** ConvNeXt-Tiny @ 384, settings from section 2.4; data split, augmentations, loss and schedule are the same
-as in experiments 1–2.
+Results: [`experiment/results/convnext`](experiment/results/convnext).
 
-*Results pending.*
+**Setup.** ConvNeXt-Tiny @ 384, settings from section 2.4 (batch 32, AdamW lr 1e-4, weight decay 0.05 without decay on
+bias / norm / layer scale, 15 epochs); data split, augmentations, loss and schedule are the same as in experiments 1–2.
+Training time on a Kaggle T4: 54 min 54 s (~3.6 min per epoch, 5.8 GB peak GPU memory) vs ~29 min for the baseline.
+The best checkpoint is from epoch 14 (val F1 macro 0.9182).
+
+### 5.1 Results (test)
+
+| metric | baseline | ConvNeXt | Δ |
+|---|---|---|---|
+| accuracy | 0.9408 | **0.9487** | +0.0079 |
+| precision macro | 0.9116 | **0.9141** | +0.0025 |
+| recall macro | 0.9018 | **0.9109** | +0.0091 |
+| **F1 macro** | 0.9065 | **0.9124** | **+0.0059** |
+| F1 weighted | 0.9406 | **0.9486** | +0.0080 |
+| ROC AUC macro | 0.9757 | **0.9892** | +0.0135 |
+| ROC AUC weighted | 0.9875 | **0.9938** | +0.0063 |
+| errors | 255 | **221** | −34 |
+
+| class (test) | F1 baseline | F1 ConvNeXt | Δ F1 | AP baseline | AP ConvNeXt |
+|---|---|---|---|---|---|
+| `none` | 0.9735 | **0.9805** | +0.0070 | 0.9944 | **0.9979** |
+| `smoke` | 0.9316 | **0.9429** | +0.0113 | 0.9618 | **0.9808** |
+| `fire` | **0.8094** | 0.8065 | −0.0029 | 0.8292 | **0.8539** |
+| `fire_smoke` | 0.9113 | **0.9199** | +0.0086 | 0.9413 | **0.9636** |
+
+Confusion matrix (test, rows = true, columns = predicted):
+
+| | none | smoke | fire | fire_smoke |
+|---|---|---|---|---|
+| **none** | 1961 | 34 | 4 | 6 |
+| **smoke** | 28 | 1122 | 1 | 35 |
+| **fire** | 5 | 5 | 175 | 35 |
+| **fire_smoke** | 1 | 33 | 34 | 827 |
+
+On val the gain is larger: F1 macro 0.9007 → 0.9182, accuracy 0.9385 → 0.9590 (106 vs 159 errors).
+
+### 5.2 Statistical significance
+
+| comparison | split | only ConvNeXt correct | only other correct | McNemar p-value | Δ F1 macro, 95% bootstrap CI |
+|---|---|---|---|---|---|
+| vs baseline | val | 90 | 37 | **3·10⁻⁶** | +0.018 [+0.002, +0.034] |
+| vs baseline | test | 122 | 88 | **0.023** | +0.006 [−0.006, +0.018] |
+| vs CBAM | val | 101 | 35 | **1·10⁻⁸** | +0.030 [+0.015, +0.046] |
+| vs CBAM | test | 144 | 73 | **2·10⁻⁶** | +0.023 [+0.011, +0.035] |
+
+On test, ConvNeXt makes significantly fewer errors than the baseline (McNemar p = 0.023), but the F1 macro gain is
+not significant (its CI includes 0). It is significantly better than CBAM on every comparison. As before, each model
+was trained once, so run-to-run variance is not accounted for.
+
+### 5.3 Analysis
+
+- **Better on the frequent classes.** Errors among `none` / `smoke` dropped the most (`none` → `smoke` 43 → 34,
+  `smoke` → `none` 43 → 28), and `fire_smoke` also improved.
+- **`fire` did not improve.** F1 0.809 → 0.807. The `fire` ↔ `fire_smoke` confusion is almost unchanged (72 → 69
+  errors), even though the model and the input resolution are much larger. So the hypothesis is only partly confirmed:
+  this boundary is not limited by the capacity or the resolution of the model.
+- **The probabilities ranked better.** `fire` ROC AUC 0.938 → 0.976 and AP 0.829 → 0.854, while F1 is the same. The
+  model separates `fire` better as a ranking, but the argmax decision at the `fire` / `fire_smoke` boundary is
+  still the bottleneck. A likely cause is the labels: `fire_smoke` is assigned whenever a smoke box exists, and
+  thin or faint smoke near the fire is annotated inconsistently in D-Fire.
+- **Faster convergence, more over-confidence.** Val F1 after 1 epoch was already 0.860 (baseline: 0.749). Val loss is
+  lowest at epoch 2 (0.318) and then grows to ~0.49 while train loss falls to 0.013. So the model becomes
+  over-confident, but val F1 keeps improving until epoch 14.
+- **Cost:** ~1.9× the training time of the baseline and 2.5× the checkpoint size (111 MB vs 45 MB).
+
+**Conclusion.** ConvNeXt-Tiny @ 384 is the best model so far. It has the best accuracy, F1 macro/weighted and ROC AUC,
+and 34 fewer test errors (significant by McNemar). The F1 macro gain on test is small (+0.6 pp) and not significant,
+and `fire` F1 did not improve. Possible follow-ups that target the `fire` / `fire_smoke` boundary: two independent
+binary outputs ("fire present", "smoke present", sigmoid + BCE), which match the way the 4 classes are derived from
+the labels; tuning the decision thresholds on val; and label smoothing against over-confidence.

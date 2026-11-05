@@ -1,0 +1,38 @@
+general:
+  exp_name: convnext_tiny_384
+  seed: 42
+  debug: false
+  debug_samples: 128
+paths:
+  data_root: /kaggle/input
+  out_dir: /kaggle/working/outputs
+data:
+  smoke_id: 0
+  fire_id: 1
+  val_size: 0.15
+  img_size: 384
+model:
+  name: convnext_tiny
+  pretrained: true
+  attention: none
+  cbam:
+    reduction: 16
+    kernel_size: 7
+    identity_init: true
+training:
+  epochs: 15
+  batch_size: 32
+  lr: 0.0001
+  weight_decay: 0.05
+  no_weight_decay_1d: true
+  attention_lr_mult: 10
+  mixed_precision: true
+  class_weights: true
+  early_stopping: 5
+  monitor: f1_macro
+  num_workers: 4
+  progress_bar: false
+logging:
+  log_interval: 50
+  n_error_examples: 24
+  zip_outputs: true
